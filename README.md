@@ -10,6 +10,7 @@ Project này dùng để phân tích dữ liệu kinh doanh và xây dựng mô 
 business-data-analysis-and-prediction/
 ├── assets/
 ├── data/
+├── docs/latex/
 ├── eda/
 ├── requirements/
 ├── result/
@@ -21,6 +22,7 @@ business-data-analysis-and-prediction/
 ## Ý nghĩa từng thư mục
 
 - `data/`: chứa dữ liệu gốc do ban tổ chức cung cấp.
+- `docs/latex/`: chứa các thành phần của file report, bao gồm code latex, ảnh các biểu đồ và đầu ra file pdf.
 - `eda/`: chứa notebook trực quan hóa dữ liệu, bao gồm biểu đồ và phần mô tả/nhận xét dữ liệu.
 - `requirements/`: chứa đề thi và tài liệu gốc từ ban tổ chức.
 - `src/`: chứa mã nguồn notebook chính của project.
