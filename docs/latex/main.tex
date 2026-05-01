@@ -1,0 +1,514 @@
+\documentclass{article}
+
+\usepackage[final,main]{neurips_2025}
+\usepackage[T5]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[utf8]{vntex}
+
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{array}
+\usepackage{multirow}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\usepackage{xcolor}
+\usepackage{subcaption}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage[protrusion=false]{microtype}
+\raggedbottom
+\emergencystretch=2em
+\hbadness=10000
+\hfuzz=8pt
+
+% Safe figure include (fallback nếu chưa có ảnh)
+\newcommand{\safeincludegraphics}[2][]{%
+  \IfFileExists{#2}{%
+    \includegraphics[#1]{#2}%
+  }{%
+    \fbox{\parbox[c][0.18\textheight][c]{0.44\linewidth}{%
+      \centering\small [Figure: \texttt{\detokenize{#2}}]}}%
+  }%
+}
+
+% -----------------------------------------------------------------------
+\title{Chẩn đoán vòng lặp tồn kho$-$khuyến mãi$-$biên lợi nhuận
+trong một doanh nghiệp thời trang thương mại điện tử Việt Nam}
+
+\author{%
+  Tên Nhóm \\
+  Non-nerd \\
+  \And
+  Nguyễn Phương Linh \\
+  Minerva University \\
+  \And
+  Nguyễn Ngân Hương \\
+  Minerva University \\
+  \And
+  Đỗ Khánh Phương \\
+  HUST \\
+}
+
+\begin{document}
+\maketitle
+
+% -----------------------------------------------------------------------
+\begin{abstract}
+Báo cáo này xác định 471 triệu VND vốn lưu động bị đóng băng trong tồn kho
+lâu ngày của một doanh nghiệp thời trang TMĐT tại Việt Nam, hậu quả của vòng
+lặp 5 mắt xích kết nối hệ thống tái đặt hàng, kiến trúc khuyến
+mãi và biên lợi nhuận. Dựa trên dữ liệu giai đoạn 2012--2022, nghiên cứu
+chỉ ra doanh thu rơi vào trạng thái bão hòa từ năm 2019, giảm 46\% so với
+đỉnh năm 2016. Chúng tôi truy nguyên cơ chế vận hành qua 5 giai đoạn: hệ
+thống reorder không phân biệt tốc độ bán theo đơn vị lưu kho khiến
+chỉ số ngày tồn kho đáp ứng của mặt hàng chủ lực Streetwear tăng gấp 9,4
+lần, dẫn đến nghẽn vốn và áp lực xả hàng vượt ngưỡng chịu tải của biên lợi
+nhuận. Mô hình LightGBM nhận diện trạng thái (regime-aware) đạt
+MAPE~\textbf{[X]\%} trên holdout 2022, vượt baseline 21,3\%. Bộ 5 đề xuất
+định lượng gắn trực tiếp vào từng mắt xích, tổng tác động ước tính
+447--799 triệu VND năm thứ nhất (gồm cả vốn thu hồi và lợi nhuận cải thiện).
+\end{abstract}
+
+% -----------------------------------------------------------------------
+\section{Giới thiệu và Đặt vấn đề}
+\subsection {Bối cảnh:}
+Doanh thu đạt đỉnh 2,10 tỷ VND năm 2016, giảm 46\% xuống 1,14 tỷ VND năm
+2019 và đứng yên suốt 2019--2022. Trong cùng giai đoạn, lưu lượng truy cập
+tăng 1,63$\times$ và lượt đăng ký mới tăng 7,1$\times$. Phân kỳ này loại
+trừ giả thuyết nhu cầu thị trường suy yếu và đẩy câu hỏi nghiên cứu sang
+phía cung.
+\paragraph{Câu hỏi nghiên cứu:}
+Tại sao lưu lượng truy cập và khách hàng đăng ký mới tăng nhưng doanh thu lại đứng yên? Tại sao biên lợi nhuận xói mòn dù cường độ khuyến mãi liên tục tăng?
+
+\subsection{Đóng góp chính:}
+
+\noindent\textbf{(i)} Từ phân tích chéo 8 bảng dữ liệu, truy nguyên được vòng một lặp khép kín: (1) Hệ thống tái đặt hàng thiếu tối ưu theo Stock Keeping Unit (SKU) → (2) Tồn kho tích luỹ với Days of Supply (DOS) của chủ lực Streetwear leo từ 184 lên 1,730 ngày (×9.4) → (3) Nghẽn 471 triệu VND vốn lưu động → (4) Áp lực ép giảm giá xả hàng qua 80\% chương trình khuyến mãi blanket toàn sàn → (5) Discount vượt 20\% trên Streetwear phá hủy biên lợi nhuận. Lỗ lũy kế 677.6 triệu VND khiến doanh nghiệp không đủ ngân sách nâng cấp hệ thống, từ đây khép vòng và tự duy trì.
+
+\noindent\textbf{(ii)} Phương pháp xác định ngưỡng giới hạn (cliff edge)
+bằng đường cong biên lợi nhuận theo nhóm mức chiết khấu. Tìm ra ngưỡng 20\% cho danh mục Streetwear, nơi mọi hoạt động khuyến mãi thêm đều gây thiệt hại ròng cho doanh nghiệp.
+
+\noindent\textbf{(iii)} Mô hình dự báo regime-aware và lộ trình 5 hành động.
+LightGBM hybrid sửa 3 lỗi cấu trúc của baseline, đạt MAPE~\textbf{[X]\%}
+vượt baseline 21,3\%. Tổng tác động kỳ vọng 447--799 triệu VND năm thứ nhất.
+
+% -----------------------------------------------------------------------
+\section{Dữ liệu và Phương pháp luận}
+Bộ dữ liệu mô phỏng hoạt động $04/07/2012-31/12/2022$, gồm 13 file CSV chia
+thành 4 lớp: Master, Transaction, Analytical, Operational (714k dòng
+\texttt{order\_items}; 121k \texttt{customers}; 60k \texttt{inventory\_snapshots}).
+
+\textbf{Joins chính:}
+$\texttt{oi\_full} = \texttt{order\_items} \times \texttt{products} \times
+\texttt{promotions} \times \texttt{orders} \times \texttt{geography}$ (biên
+lợi nhuận row-level); $\texttt{inv\_full} = \texttt{inventory} \times
+\texttt{products}$ (DOS, vốn nghẽn); $\texttt{ret\_full}=\texttt{returns}\times\texttt{products}\times\texttt{order\_items}$ (tỷ lệ trả hàng, Appendix E). NULL trong \texttt{promo\_id} là
+\texttt{no\_promo}; $100$\% dòng qua kiểm định ràng buộc schema ($\textit{cogs}
+< \textit{price}$, $\textit{discount} \ge 0$, $\textit{quantity} > 0$).
+
+\textbf{Chuẩn hóa:} Biên lợi nhuận:
+\[
+\mathrm{margin}_i = \frac{\texttt{unit\_price}_i\times \texttt{quantity}_i - \texttt{discount\_amount}_i - \texttt{cogs}_i\times \texttt{quantity}_i}{\texttt{unit\_price}_i\times \texttt{quantity}_i}
+\]
+\[
+\mathrm{DOS}_t = \frac{\texttt{stock\_on\_hand}_t}{\texttt{units\_sold}_t/30}
+\]
+lấy mẫu cuối tháng. Mô hình dự báo dùng expanding window 4-fold time-series,
+gap 7 ngày tránh leakage, cửa sổ từ 2019-01-01.
+
+% -----------------------------------------------------------------------
+\section{Phân tích EDA: Vòng lặp tồn kho}
+\label{sec:diag}
+
+Doanh thu sụt 46\% từ 2016 về 2019 rồi đứng yên, nhưng tính mùa vụ không bị
+phá vỡ. Cụ thể, Q2 đóng góp 36\% doanh thu và 45\% lợi nhuận cả năm, nhất quán
+trước và sau 2019. Phía cầu lành mạnh đẩy câu hỏi sang phía cung. Sau khi truy nguyên hệ thống tồn kho, khuyến mãi và biên lợi nhuận, xác định được một vòng lặp gồm 5 mắt xích như sau.
+
+\begin{figure}[t]
+  \centering
+  \begin{subfigure}[t]{0.48\linewidth}
+    \centering
+    \safeincludegraphics[width=\linewidth]{images/1.1.png}
+    \caption{Chỉ số tăng trưởng tương đối (Base\,=\,2013). Signup $\times$7,1, traffic $\times$1,63, doanh thu giảm về $\times$0,76 vào 2019; phân kỳ từ 2017 không đảo chiều.}
+    \label{fig:overview_growth}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[t]{0.48\linewidth}
+    \centering
+    \safeincludegraphics[width=\linewidth]{images/1.2.png}
+    \caption{Ma trận biên lợi nhuận gộp (\%) theo tháng--năm. Tháng 8 lặp lại biên âm sâu ($-32$ đến $-42\%$) xuyên suốt 10 năm, xác nhận đây là hệ quả cấu trúc khuyến mãi, không phải biến động ngẫu nhiên.}
+    \label{fig:overview_margin}
+  \end{subfigure}
+\end{figure}
+
+\subsection{Vòng lặp tồn kho}
+\label{sec:doomloop}
+
+\textbf{Mắt xích 1: Hệ thống tái đặt hàng thô không phân biệt theo sức mua từng sản phẩm (SKU).}
+67,3\% product-month có stockout; 76,3\% có overstock; 50,62\% xảy ra đồng thời
+trên cùng SKU cùng tháng. Hai trạng thái đối lập đồng tồn tại chỉ khi
+reorder logic không nhìn thấy tốc độ tiêu thụ trong tháng. Từ đó, cùng một sản phẩm, trong cùng một tháng, vừa hết hàng sớm (gây mất doanh thu) lại vừa tồn kho thừa vào cuối tháng (gây kẹt vốn và áp lực giảm giá sâu). Dấu hiệu cho thấy hệ thống đang không nhìn rõ nhu cầu thực tế theo ngày/tuần của từng SKU. Đây là điểm khởi phát cho chuỗi vấn đề tiếp theo, không thể giải quyết bằng cách điều chỉnh tham số nhỏ lẻ.
+
+\clearpage
+
+\begin{wrapfigure}{r}{0.50\textwidth}
+  \centering
+  \vspace{-0.8\baselineskip}
+  \safeincludegraphics[width=\linewidth]{images/matxich1.png}
+  \captionsetup{hypcap=false}\captionof{figure}{Tỉ lệ Stockout và Overstock}
+  \label{fig:matxich1}
+
+  \vspace{0.4\baselineskip}
+  \safeincludegraphics[width=\linewidth]{images/matxich2.png}
+  \captionsetup{hypcap=false}\captionof{figure}{Vốn lưu động đóng băng.}
+  \label{fig:matxich2}
+  \vspace{-0.8\baselineskip}
+\end{wrapfigure}
+
+\textbf{Mắt xích 2: Tích lũy tồn kho và 471M VND vốn lưu động đóng băng.}
+Hệ thống tái đặt hàng bị lỗi cấu trúc gây tình trạng tích tụ tồn kho nghiêm trọng qua nhiều năm. DOS (Days of Supply) của Streetwear tăng vọt 9,4 lần (184 lên 1.730) và Outdoor tăng 16,9 lần (118 lên 1.998) – nghĩa là phải mất gần 5 năm để giải phóng toàn bộ tồn kho hiện có ngay cả khi dừng nhập hàng hoàn toàn.
+
+Hậu quả là 471 triệu VND vốn lưu động đang bị đóng băng trong 379 SKU có DOS > 180 ngày, trong đó 75,5\% (355,9 triệu VND) thuộc danh mục Streetwear. Khoản vốn khổng lồ này không chỉ tạo áp lực xả hàng, mà còn là chi phí cơ hội bị bỏ lỡ, ví dụ như tái đầu tư vào các SKU biên cao, marketing hiệu quả, hoặc nâng cấp hệ thống vận hành để tạo ra lợi nhuận bền vững.
+
+\textbf{Mắt xích 3: Kiến trúc khuyến mãi blanket (toàn sàn) làm trầm trọng vấn đề lợi nhuận.} Để giải quyết áp lực tồn kho, doanh nghiệp sử dụng các chương trình khuyến mãi bao phủ 80\% toàn sàn thay vì nhắm mục tiêu. Điều này khiến các danh mục đang lành mạnh như Casual và GenZ cũng bị kéo vào cuộc đua giảm giá không cần thiết. Cụ thể, cả 4 danh mục âm biên trên đơn khuyến mãi (Streetwear
+$-15,3\%$; Outdoor $-9,9\%$; Casual $-14,8\%$; GenZ $-5,7\%$); gây lỗ lũy kế 677,6M VND trên các đơn hàng khuyến mãi mà dữ liệu P\&L (Lãi \& Lỗ) truyền thống khó bóc tách.
+
+\begin{wrapfigure}{r}{0.50\textwidth}
+  \centering
+  \vspace{-1.2\baselineskip}
+  \safeincludegraphics[width=\linewidth]{images/matxich4.png}
+  \captionsetup{hypcap=false}\captionof{figure}{Ngưỡng discount 20\% của Streetwear.}
+  \label{fig:matxich4}
+  \vspace{-0.8\baselineskip}
+\end{wrapfigure}
+
+\textbf{Mắt xích 4: Ngưỡng phá vỡ biên lợi nhuận (Hard Limit 20\%) của Streetwear.}
+Đường cong biên lợi nhuận theo mức chiết khấu có
+cliff edge rõ rệt: $+18,5\%$ tại 0--5\%, cận ngưỡng hòa vốn $+1,2\%$ tại 15--20\%,
+đảo dấu $-3,3\%$ ngay khi vượt 20\%, xuống $-22\%$ tại 30--40\%. Do áp lực xả hàng toàn sàn, mức giảm giá thực tế có thể chạm hoặc bị đẩy vượt ngưỡng 20\%. Việc bán dưới giá vốn ở danh mục chiếm 80\% doanh thu đã trực tiếp bào mòn nguồn lực tài chính của toàn công ty.
+
+\textbf{Mắt xích 5: Vòng khép kín.} Thâm hụt lợi nhuận từ việc bán lỗ (mắt xích 4) khiến doanh nghiệp không đủ ngân sách nâng cấp hệ thống dự báo và reorder. Kết quả là doanh nghiệp tiếp tục vận hành trên hệ thống reorder lỗi thời (mắt xích 1), khiến vốn đóng băng dự kiến sẽ vượt mức 600M VND vào cuối năm 2024 nếu không có sự can thiệp triệt để vào cấu trúc vận hành.
+
+% -----------------------------------------------------------------------
+\section{Mô hình Dự báo}
+\subsection{Pipeline Mô hình}
+Pipeline cuối cùng gồm năm bước chính: (1) tổng hợp dữ liệu về cấp độ ngày, (2) xây dựng feature, (3) cross-validation theo thời gian, (4) huấn luyện và kết hợp mô hình (LightGBM, CatBoost, Ridge Regression), và (5) dự báo test và xuất file submission.
+\subsection{Feature engineering}
+Feature engineering được xây dựng dựa trên các insight từ EDA. Nhóm đặc trưng gồm bốn loại chính: (i) đặc trưng lịch và Fourier để nắm bắt mùa vụ theo tuần, tháng và năm; (ii) đặc trưng autoregressive từ Revenue/COGS để phản ánh trí nhớ lịch sử của chuỗi; (iii) đặc trưng khuyến mãi để mã hóa các campaign có tính định kỳ; và (iv) đặc trưng tồn kho và web traffic để phản ánh ràng buộc vận hành và tín hiệu nhu cầu đầu phễu. Tất cả các đặc trưng liên quan đều được tạo bằng cách shift(1) trước khi rolling để đảm bảo không sử dụng thông tin của ngày cần dự báo.
+\subsection{Cross-validation}
+Mô hình sử dụng expanding-window cross-validation thay vì random split. Cụ thể, mô hình được huấn luyện trên 2012--2018, 2012--2019, 2012--2020, 2012--2021 và validate trên 2019, 2020, 2021, 2022. Như vậy, qua các chỉ số MAE, RMSE và R$^2$, mô hình luôn được đánh giá trên dữ liệu tương lai chưa quan sát, phản ánh đúng bối cảnh dự báo thực tế.
+
+\subsection{Kết quả}
+\label{sec:model}
+\begin{table}[H]
+\centering
+\caption{So sánh hiệu suất mô hình theo năm (Baseline vs Final ensemble).}
+\label{tab:model_comparison}
+\footnotesize
+\begin{tabular}{lclrrr}
+\toprule
+Target & Year & Model & MAE & RMSE & R$^2$ \\
+\midrule
+Revenue & 2021 & Baseline        & 523{,}011 & 758{,}908 & 0.7863 \\
+Revenue & 2021 & Final ensemble & 438{,}543 & 608{,}273 & 0.8627 \\
+Revenue & 2022 & Baseline        & 711{,}262 & 956{,}723 & 0.6733 \\
+Revenue & 2022 & Final ensemble & 502{,}506 & 697{,}520 & 0.8263 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% -----------------------------------------------------------------------
+\section{Đề xuất, Mô phỏng tác động, và Kết luận}
+\label{sec:prescriptive}
+
+\begin{wrapfigure}[10]{r}{0.48\textwidth}
+  \centering
+  \vspace{-1.0\baselineskip}
+  \safeincludegraphics[width=\linewidth]{images/prescriptive.png}
+  \captionsetup{hypcap=false}
+  \captionof{figure}{Mô phỏng 2023--2024: Status quo lỗ lũy kế $\sim$420M
+  VND; Intervention hòa vốn tháng 6, đạt $+$840M cuối 2024. Chênh lệch
+  $\sim$1,26 tỷ VND.}
+  \label{fig:simulation}
+  \vspace{-1.0\baselineskip}
+\end{wrapfigure}
+
+\paragraph{Mô phỏng 2 kịch bản 2023--2024.}
+\textit{Status quo}: biên trung bình $-5\%$ do vòng lặp tiếp diễn.
+\textit{Intervention}: hard cap 20\%, sửa reorder, biên hồi phục tuyến
+tính $-5\%\to+5\%$ trong 6 tháng rồi giữ $+10\%$. Doanh thu nền 350M
+VND/tháng, mùa vụ $\pm$30\%. Khoảng cách hai kịch bản 1,26 tỷ VND lợi
+nhuận lũy kế cuối 2024 (Hình~\ref{fig:simulation}).
+
+\paragraph{Lộ trình 5 hành động $\to$ 5 KPI.}
+Bảng~\ref{tab:roadmap} ánh xạ mỗi mắt xích vòng lặp sang 1 hành động và
+1 KPI có baseline-target, hoàn thành yêu cầu prescriptive định lượng.
+
+\begin{table}[h]
+\centering
+\caption{Lộ trình 5 hành động sắp theo causal chain. Cột Baseline$\to$Target
+chuyển hành động thành KPI đo được; cột Effort/Risk giữ logic ưu tiên.}
+\label{tab:roadmap}
+\scriptsize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{cL{2.0cm}cL{3.4cm}L{2.6cm}L{1.6cm}}
+\toprule
+\# & Hành động & MX & KPI: Baseline $\to$ Target &
+ROI / Risk & Effort \\
+\midrule
+1 & Hard cap 20\% Streetwear & 4 &
+Discount: $>$25\% $\to$ $\leq$20\% & 1 tháng / mất 1--2\% vol & Thấp \\
+2 & Nhân rộng stacked promo & 3 &
+AOV: 13,4k $\to$ $>$23k & 2 tháng / cannibalize solo & Thấp \\
+3 & Thanh lý 379 SKU outlet & 2 &
+Frozen capital: 471M $\to$ 150--200M Q1 & 3 tháng / brand perception & TB \\
+4 & Blanket $\to$ targeted promo & 3 &
+Targeted share: 20\% $\to$ $>$70\% & 6 tháng / workload marketing & TB \\
+5 & Cải tổ reorder system & 1 &
+MAPE dự báo: 21,3\% $\to$ $<$15\% & Year 2$+$ / 200M one-time & Cao \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Kết luận.}
+Duy trì hiện trạng: doanh thu 2024 dưới 1,20 tỷ VND, frozen capital vượt 600M, lỗ lũy kế thêm $\sim$420M. Triển khai 5 hành động theo M1$\to$M4: hòa vốn tháng 6/2023, tổng tác động 447--799 triệu VND trong năm 1 (vốn thu hồi và lợi nhuận cải thiện). Sự khác biệt nằm ở việc chấp nhận đánh đổi short-term comfort lấy long-term sustainability. Chi tiết sensitivity: Appendix~\ref{app:sensitivity}.
+
+% =====================================================================
+\appendix
+\clearpage
+
+% ---------------------------------------------------------------------
+\section{Schema, Joins, và Validation}
+\label{app:schema}
+
+\noindent\textbf{Mục đích.} Phần này tóm tắt kiểm tra toàn vẹn dữ liệu,
+logic join giữa các bảng, và các ràng buộc schema trước khi đi vào phân
+tích chính.
+
+\subsection{Schema Joins}
+
+\begin{table}[ht]
+\centering
+\caption{Số dòng pre/post join. Tất cả join đều là LEFT join trên khóa
+chính. Tỷ lệ NULL của các trường khóa sau join bằng 0\% xác nhận tính toàn
+vẹn quan hệ.}
+\label{tab:joins}
+\footnotesize
+\begin{tabular}{L{3.6cm}rrL{3.0cm}}
+\toprule
+Join & Pre (rows) & Post (rows) & Null khóa sau join \\
+\midrule
+\texttt{order\_items} $\times$ \texttt{products} & 714.669 & 714.669 & category: 0\% \\
+\texttt{oi\_full} $\times$ \texttt{orders} & 714.669 & 714.669 & order\_date: 0\% \\
+\texttt{returns} $\times$ \texttt{products} & 39.939 & 39.939 & category: 0\% \\
+\texttt{inventory} $\times$ \texttt{products} & 60.247 & 60.247 & cogs: 0\% \\
+\texttt{order\_items} $\times$ \texttt{promotions} & 714.669 & 714.669 & promo\_id NULL = no\_promo \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Validation Checks}
+
+\noindent\textbf{Schema constraints (đã pass 100\%).}
+$\textit{cogs} < \textit{price}$ trên 2.412 sản phẩm; $\textit{quantity} > 0$
+trên 714.669 dòng \texttt{order\_items}; $\textit{discount\_amount} \geq 0$
+trên 100\% dòng. Range kiểm tra: \texttt{Date} $\in$ [2012-07-04,
+2022-12-31]; \texttt{rating} $\in$ [1, 5]; \texttt{installments} $\in$
+[1, 12]. NULL trong \texttt{promo\_id} và \texttt{promo\_id\_2} được xử lý
+là \texttt{no\_promo}, không drop dòng.
+
+\clearpage
+
+% ---------------------------------------------------------------------
+\section{Methodology Chi tiết}
+\label{app:method}
+
+\paragraph{B.1 Cliff edge curve (Mắt xích 4, Section~\ref{sec:doomloop}).}
+Lọc \texttt{oi\_full} theo \texttt{category=Streetwear}, tính
+\texttt{disc\_pct} $= \texttt{discount\_amount}/(\texttt{quantity}\times
+\texttt{unit\_price})$. Bin theo các ngưỡng $[0, 5, 10, 15, 20, 25, 30,
+40, 100]$\%. Mỗi bin tổng $\sum \text{profit}/\sum \text{actual\_revenue}$
+ra biên trung bình. Số dòng tối thiểu mỗi bin $\geq$ 500 đảm bảo độ ổn
+định thống kê. Cliff edge định nghĩa: bin đầu tiên có biên đảo dấu, ở đây
+là [20--25\%] với $-3,3\%$.
+
+\paragraph{B.2 DOS (Days of Supply).}
+$\mathrm{DOS}_t = \texttt{stock\_on\_hand}_t / (\texttt{units\_sold}_t/30)$,
+lấy mẫu cuối tháng. Đặt $\mathrm{DOS}=\infty$ nếu \texttt{units\_sold}=0,
+loại khỏi tính trung bình. Ngưỡng frozen capital: SKU có
+$\overline{\mathrm{DOS}}_{\text{Q4\_2022}} > 180$ ngày, lấy trung bình
+3 tháng cuối để giảm noise. Frozen value $= \overline{\texttt{stock\_on\_hand}}
+\times \texttt{cogs}$.
+
+\paragraph{B.3 Isolation Stacked Promo.}
+Cờ: \texttt{is\_promo} $= \texttt{promo\_id}$ NOT NULL; \texttt{is\_stacked}
+$= \texttt{promo\_id}$ NOT NULL AND \texttt{promo\_id\_2} NOT NULL. Ba
+nhóm độc lập: \texttt{no\_promo} ($n_1$), \texttt{solo} ($n_2$),
+\texttt{stacked} ($n_3$). Biên row-level đã định nghĩa ở Section~2 main
+body. Khoảng tin cậy 95\% ước tính qua bootstrap 1.000 lần lấy mẫu có
+hoàn lại trên từng nhóm.
+
+% ---------------------------------------------------------------------
+\section{Predictive Analysis Mở rộng}
+\label{app:predictive}
+
+\paragraph{C.1 Leading indicator: Web traffic dẫn doanh thu.}
+Cross-correlation giữa \texttt{sessions} và \texttt{Revenue} ở các lag
+0--14 ngày: lag 0 ($r=0,565$), lag 1 ($r=0,52$), lag 7 ($r=0,38$).
+Sessions không phải lagging indicator của Revenue mà là contemporaneous
++ short-lead, hữu ích cho cảnh báo trong tuần. Conversion rate
+(Revenue/Sessions) giảm từ 0,31 (2016) xuống 0,12 (2022), $-61\%$,
+xác nhận vấn đề ở supply side, không phải demand.
+
+\paragraph{C.2 Q2 seasonal anchor.}
+Q2 đóng góp 36\% doanh thu và 45\% lợi nhuận, ổn định trước/sau 2019.
+Tháng 5 có doanh thu trung bình ngày cao nhất ($\sim$5,3M VND),
+tháng 8 có biên thấp nhất ($-32$ đến $-42\%$). Hệ quả cho dự báo: feature
+\texttt{is\_q2} có $r=0,504$ với revenue, đứng top-6 SHAP. Hệ quả vận
+hành: thanh lý tồn kho (Hành động \#2) chỉ khả thi trong Q2 mà không
+phá biên trung bình năm.
+
+\paragraph{C.3 Extrapolation slope 2019--2022.}
+Linear fit $\texttt{Revenue}_y \sim y$ trên cửa sổ 2019--2022 cho
+slope $-32$M VND/năm. Ngoại suy đến 2024: doanh thu cả năm $\approx$
+1,12 tỷ VND nếu không can thiệp. Frozen capital nếu tốc độ tích lũy
+giữ nguyên ($+$33M VND/năm trên Streetwear): vượt 600M VND cuối 2024.
+
+% ---------------------------------------------------------------------
+\section{Model Card}
+\label{app:model}
+
+\begin{table}[ht]
+\centering
+\caption{Feature list cho mô hình LightGBM. Tất cả features đều
+leak-safe: chỉ dùng dữ liệu tính được tại thời điểm $t$ với thông tin
+đến $t-1$.}
+\label{tab:features}
+\footnotesize
+\begin{tabular}{L{2.4cm}L{3.0cm}L{3.2cm}}
+\toprule
+Nhóm & Feature & Lag/Window \\
+\midrule
+\multirow{4}{*}{\shortstack[l]{Autore-\\gressive}} & rev\_lag\_1 & $t-1$ \\
+& rev\_lag\_7 & $t-7$ \\
+& rev\_lag\_30 & $t-30$ \\
+& rev\_ma\_7 & $t-7$ đến $t-1$ \\
+\midrule
+\multirow{4}{*}{Calendar} & dow & contemporaneous (deterministic) \\
+& month & contemporaneous (deterministic) \\
+& is\_q2 & contemporaneous (deterministic) \\
+& is\_tet\_window & contemporaneous (rule-based) \\
+\midrule
+\multirow{2}{*}{Web traffic} & sessions\_lag\_1 & $t-1$ \\
+& sessions\_ma\_7 & $t-7$ đến $t-1$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\caption{Cross-validation: expanding window 4 fold, gap 7 ngày tránh
+leakage.}
+\label{tab:cv}
+\footnotesize
+\begin{tabular}{lllr}
+\toprule
+Fold & Train & Validation & MAPE (\%) \\
+\midrule
+1 & 2012-01 đến 2018-12 & 2019-01 đến 2019-12 & [X.X] \\
+2 & 2012-01 đến 2019-12 & 2020-01 đến 2020-12 & [X.X] \\
+3 & 2012-01 đến 2020-12 & 2021-01 đến 2021-12 & [X.X] \\
+4 & 2012-01 đến 2021-12 & 2022-01 đến 2022-06 & [X.X] \\
+\midrule
+\multicolumn{3}{l}{Holdout (2022-07 đến 2022-12)} & \textbf{[X.X]} \\
+\multicolumn{3}{l}{Baseline BTC trên cùng holdout} & 21,26 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{D.1 SHAP summary.}
+Top 6 features theo mean $|$SHAP$|$: rev\_lag\_7, rev\_lag\_1, rev\_ma\_7,
+sessions, month, is\_q2.
+
+\paragraph{D.2 Hyperparameters.}
+LightGBM: \texttt{num\_leaves}=31, \texttt{learning\_rate}=0,05,
+\texttt{n\_estimators}=500 với early stopping 50 vòng,
+\texttt{min\_child\_samples}=20, \texttt{reg\_alpha}=0,1,
+\texttt{reg\_lambda}=0,1. Target: $\log(1+\text{Revenue})$. Random seed
+42. Ensemble: LGB 0,65 $+$ CatBoost 0,15 $+$ Ridge 0,20.
+
+% ---------------------------------------------------------------------
+\section{Returns Analysis}
+\label{app:returns}
+
+\begin{table}[ht]
+\centering
+\caption{Tỷ lệ trả hàng theo danh mục, định nghĩa
+$\sum\texttt{return\_quantity} / \sum\texttt{quantity}$ trên
+\texttt{order\_items}. Streetwear là danh mục lớn nhất nhưng có rate
+thấp nhất, loại trừ giả thuyết ``Streetwear bán chậm vì chất lượng''.}
+\label{tab:return_rate}
+\footnotesize
+\begin{tabular}{lrr}
+\toprule
+Danh mục & Return rate (\%) & Top reason \\
+\midrule
+GenZ       & 3,52 & wrong\_size \\
+Outdoor    & 3,45 & wrong\_size \\
+Streetwear & 3,38 & wrong\_size \\
+Casual     & 3,26 & wrong\_size \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{E.1 Hệ quả.}
+Return rate biến thiên hẹp (3,26\%--3,52\%) loại trừ chất lượng sản
+phẩm là nguyên nhân vòng lặp tồn kho. \texttt{wrong\_size} chiếm $\sim$32\%
+mọi danh mục, gợi ý vấn đề size guide hoặc data sản phẩm thiếu chuẩn,
+không liên quan core narrative tồn kho-khuyến mãi.
+
+% ---------------------------------------------------------------------
+\section{Sensitivity Analysis: Tác động Tài chính}
+\label{app:sensitivity}
+
+\begin{table}[ht]
+\centering
+\caption{Sensitivity 3 kịch bản cho 5 hành động. Tổng năm 1: pessimistic
+447M, base 642M, optimistic 799M VND.}
+\label{tab:sensitivity}
+\footnotesize
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{cL{2.2cm}rrrL{2.8cm}}
+\toprule
+\# & Hành động & Pess. (M) & Base (M) & Opt. (M) & Assumption khác biệt \\
+\midrule
+1 & Reorder SKU velocity     &  60 &  80 & 110 & Ngăn 5--10\% tích lũy mới \\
+2 & Thanh lý 379 SKU         & 235 & 354 & 424 & Recovery 50/75/90\% giá vốn \\
+3 & Hard cap 20\% Streetwear  &  60 &  75 &  90 & Volume loss 1--2\%, biên ổn định \\
+4 & Blanket 80$\to$30\%      &  80 & 115 & 150 & Targeted hit 60/75/90\% biên Casual+GenZ \\
+5 & Stacked promo            &  12 &  18 &  25 & Adoption rate 30/50/70\% \\
+\midrule
+  & \textbf{Tổng năm 1}      & \textbf{447} & \textbf{642} & \textbf{799} & \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{F.1 Giả định nền (base case).}
+Thanh lý thu hồi 75\% giá vốn (benchmark outlet thời trang VN trên slow-
+moving SKU); biên Streetwear sau hard cap đạt $+15$pp tương đương đường
+cong cliff edge; targeted promo bảo vệ 75\% biên hiện tại của Casual và
+GenZ; adoption stacked promo 50\% trong năm 1.
+
+\paragraph{F.2 Rủi ro chính.}
+Rủi ro lớn nhất là thanh lý dưới 50\% giá vốn nếu thị trường outlet bão
+hòa (Streetwear lỗi mốt sau 5 năm), kéo tổng pessimistic xuống dưới
+400M VND. Rủi ro thứ hai là cannibalization: stacked promo nuốt một phần
+biên solo, hiệu ứng ròng giảm 30--40\% so với ước tính.
+
+\paragraph{F.3 Dependency timeline.}
+Năm 1 chỉ thu được $\sim$447--799M nếu Action \#1 (reorder fix) hoàn
+thành trong 60 ngày. Nếu Action \#1 trượt qua tháng 6/2024, các action
+sau bị tái tích lũy tồn kho dưới 24 tháng, làm rỗng phần lớn lợi ích
+thanh lý ở Action \#2.
+\end{document}
